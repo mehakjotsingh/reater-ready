@@ -110,7 +110,7 @@ export default function Landing() {
               <h3>Guided inspection that actually gets done.</h3>
               <p>A room-by-room photo flow that takes about five minutes. AI writes the condition notes from your photos. The report locks with a timestamp and both sides hold identical copies.</p>
               <ul className="feat-list"><li>Personalized checklist based on your unit type</li><li>AI describes damage so notes are consistent and credible</li><li>Locked, timestamped, identical copies to both parties</li></ul>
-              <Link href="/report" className="btn btn-mint" style={{ marginTop: 18 }}>Start a free inspection →</Link>
+              <Link href="/app" className="btn btn-mint" style={{ marginTop: 18 }}>Start a free inspection →</Link>
             </div>
             <div className="feat-visual">
               <div className="fv-card"><div className="h">🛏 Bedroom · 4 photos</div><div className="s">Scuff on north wall, stain near closet</div></div>
@@ -221,7 +221,7 @@ export default function Landing() {
               <p>Lease review. Move-in proof. Deposit protection. All in one place.</p>
             </div>
             <div className="footer-cols">
-              <div className="footer-col"><h5>Product</h5><Link href="/report">Move-in inspection</Link><a href="#pricing">Pricing</a><Link href="/app">Launch app</Link></div>
+              <div className="footer-col"><h5>Product</h5><Link href="/app">Move-in inspection</Link><a href="#pricing">Pricing</a><Link href="/app">Launch app</Link></div>
               <div className="footer-col"><h5>Resources</h5><Link href="/tools/deposit-calculator">Deposit deadline calculator</Link><Link href="/guides">Renter guides</Link></div>
             </div>
           </div>
