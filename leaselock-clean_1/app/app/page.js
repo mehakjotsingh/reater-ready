@@ -234,6 +234,7 @@ function Dashboard({ go, profile }) {
         <h2>Jump back in</h2>
         <p className="d">Pick up where you left off.</p>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button className="bg2" onClick={() => go('lease')}>Review a lease</button>
           <button className="bg2" onClick={() => go('movein')}>Document move-in</button>
           <button className="bg2" onClick={() => go('maint')}>Log a maintenance issue</button>
           <button className="bg2" onClick={() => go('rent')}>Log rent payment</button>
@@ -606,6 +607,7 @@ function MoveInLauncher() {
 // Messages tab removed
 const NAV = [
   ['home', 'Dashboard', '◫'],
+  ['lease', 'Lease review', '📄'],
   ['movein', 'Move-in report', '📸'],
   ['calendar', 'Lease calendar', '📅'],
   ['maint', 'Maintenance', '🔧'],
@@ -613,6 +615,7 @@ const NAV = [
 ]
 const TITLES = {
   home: 'Dashboard',
+  lease: 'Lease review',
   movein: 'Move-in report',
   calendar: 'Lease calendar',
   maint: 'Maintenance tracker',
@@ -673,6 +676,7 @@ export default function App() {
         <div className="ax-top"><h1>{TITLES[tab]}</h1><Link href="/" style={{ fontSize: 14, color: 'var(--ink-soft)', fontWeight: 500 }}>Home</Link></div>
         <div className="ax-body">
           {tab === 'home' && <Dashboard go={setTab} profile={profile} />}
+          {tab === 'lease' && <LeaseReview profile={profile} />}
           {tab === 'movein' && <MoveInLauncher />}
           {tab === 'calendar' && <Calendar />}
           {tab === 'maint' && <Maintenance />}
