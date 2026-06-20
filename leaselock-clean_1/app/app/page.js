@@ -638,6 +638,7 @@ export default function App() {
   function handleQuizComplete(answers) {
     setProfile(answers)
     setQuizDone(true)
+    setTab('movein')
   }
 
   // Show quiz until completed
