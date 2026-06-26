@@ -9,7 +9,7 @@ export default function SiteNav() {
           <Link href="/guides" className="hide-sm">Guides</Link>
           <Link href="/#pricing" className="hide-sm">Pricing</Link>
           <Link href="/app" className="btn btn-mint">Start an inspection</Link>
-          <Link href="/app" className="btn btn-ghost hide-sm">Launch app</Link>
+          <Link href="/app" className="btn btn-ghost hide-sm">Dashboard</Link>
         </div>
       </div>
     </nav>
