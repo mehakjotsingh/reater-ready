@@ -759,3 +759,22 @@ a { color: inherit; text-decoration: none; }
 .cal-day-events { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
 .cal-day-label { font-size: 13px; font-weight: 600; color: var(--ink-soft); margin-bottom: 10px; }
 .cal-ev { display: flex; align-items: center; gap: 9px; font-size: 14.5px; padding: 6px 0; }
+
+/* ============ editable AI report ============ */
+.report-doc-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.report-doc-head h3 { margin: 0; }
+.report-edit-btn {
+  background: none; border: 1px solid var(--line-strong); border-radius: 999px;
+  padding: 6px 14px; font-size: 13px; font-weight: 600; color: var(--brand);
+  font-family: var(--font-body); cursor: pointer;
+}
+.report-edit-btn:hover { background: var(--mint-soft); border-color: var(--brand); }
+.report-edit-hint { font-size: 13px; color: var(--ink-soft); margin: 8px 0 4px; }
+.report-edit-ta {
+  width: 100%; min-height: 240px; margin-top: 12px; padding: 16px;
+  border: 1.5px solid var(--line-strong); border-radius: 13px;
+  font-family: var(--font-body); font-size: 15px; line-height: 1.65; color: var(--ink);
+  background: var(--paper); outline: none; resize: vertical;
+}
+.report-edit-ta:focus { border-color: var(--brand); }
+@media print { .report-edit-ta { display: none; } }
