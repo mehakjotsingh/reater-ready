@@ -1,6 +1,7 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
+import AddressAutocomplete from '../components/AddressAutocomplete'
 
 async function callAPI(system, user, images) {
   const res = await fetch('/api/claude', {
@@ -131,7 +132,7 @@ export default function Report() {
         <p className="wz-p">We'll go room by room. Take photos, note any existing issues, and our AI writes the condition report. Takes about 5 minutes.</p>
         <div className="wz-field">
           <label>Unit address</label>
-          <input className="wz-input" placeholder="123 Main St, Apt 4B" value={unitAddress} onChange={e => setUnitAddress(e.target.value)} />
+          <AddressAutocomplete value={unitAddress} onChange={setUnitAddress} placeholder="123 Main St, Apt 4B" />
         </div>
         <div className="wz-field">
           <label>Your name</label>
