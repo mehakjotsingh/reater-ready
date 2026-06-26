@@ -45,6 +45,35 @@ const ROOMS = [
 
 const ISSUE_TYPES = ['Damage', 'Stain', 'Crack', 'Missing item', 'Not working', 'Wear and tear', 'Other']
 
+const LOADER_MSGS = [
+  'Peeking behind the fridge',
+  'Counting every scuff and scratch',
+  'Inspecting the grout situation',
+  'Hunting for sneaky stains',
+  'Checking if that outlet actually works',
+  'Reading the walls like a detective',
+  'Building your deposit force field',
+  'Making the landlord a little nervous',
+]
+function GeneratingLoader() {
+  const [i, setI] = useState(0)
+  useEffect(() => {
+    const t = setInterval(() => setI(n => (n + 1) % LOADER_MSGS.length), 1500)
+    return () => clearInterval(t)
+  }, [])
+  return (
+    <div className="gen-wrap">
+      <div className="gen-scene">
+        <span className="gen-house">🏠</span>
+        <span className="gen-glass">🔍</span>
+      </div>
+      <h2 className="gen-title">Writing your report</h2>
+      <p className="gen-msg" key={i}>{LOADER_MSGS[i]}…</p>
+      <div className="gen-dots"><span /><span /><span /></div>
+    </div>
+  )
+}
+
 export default function Report() {
   const [step, setStep] = useState('rooms') // rooms | room-detail | review | generating | locked
   const [roomIdx, setRoomIdx] = useState(0)
@@ -351,12 +380,7 @@ export default function Report() {
 
   if (step === 'generating') return (
     <div className="wz" style={{ alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ textAlign: 'center', padding: 40 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
-        <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 24, marginBottom: 10 }}>Reading your photos...</h2>
-        <p style={{ color: 'var(--ink-soft)' }}>AI is reviewing each image and writing the condition notes.</p>
-        <i className="spin2" style={{ marginTop: 20, display: 'block', width: 24, height: 24, border: '3px solid var(--line)', borderTopColor: 'var(--brand)', borderRadius: '50%', animation: 'll-spin 0.7s linear infinite', margin: '20px auto 0' }} />
-      </div>
+      <GeneratingLoader />
     </div>
   )
 
