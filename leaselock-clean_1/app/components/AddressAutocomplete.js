@@ -1,21 +1,14 @@
 'use client'
 import { useState, useRef, useEffect, useCallback } from 'react'
 
-function newToken() {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
-  return 'tok-' + Math.random().toString(36).slice(2) + Date.now().toString(36)
-}
-
 export default function AddressAutocomplete({ value, onChange, placeholder, className = 'wz-input' }) {
   const [suggestions, setSuggestions] = useState([])
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(-1)
-  const tokenRef = useRef(newToken())
   const wrapRef = useRef(null)
   const timerRef = useRef(null)
   const skipNextFetch = useRef(false)
 
-  // Close on outside click
   useEffect(() => {
     function onDoc(e) {
       if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false)
@@ -29,7 +22,7 @@ export default function AddressAutocomplete({ value, onChange, placeholder, clas
       const res = await fetch('/api/places', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'autocomplete', input, sessionToken: tokenRef.current }),
+        body: JSON.stringify({ action: 'autocomplete', input }),
       })
       const data = await res.json()
       setSuggestions(data.suggestions || [])
@@ -50,21 +43,11 @@ export default function AddressAutocomplete({ value, onChange, placeholder, clas
     timerRef.current = setTimeout(() => fetchSuggestions(v), 300)
   }
 
-  async function selectSuggestion(s) {
+  function selectSuggestion(s) {
     skipNextFetch.current = true
     setOpen(false)
     setSuggestions([])
-    onChange(s.text) // show selection immediately
-    try {
-      const res = await fetch('/api/places', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'details', placeId: s.placeId, sessionToken: tokenRef.current }),
-      })
-      const data = await res.json()
-      if (data.address) onChange(data.address)
-    } catch { /* keep the suggestion text */ }
-    tokenRef.current = newToken() // new billing session after a completed selection
+    onChange(s.text)
   }
 
   function handleKey(e) {
@@ -90,7 +73,7 @@ export default function AddressAutocomplete({ value, onChange, placeholder, clas
         <ul className="addr-menu">
           {suggestions.map((s, i) => (
             <li
-              key={s.placeId}
+              key={s.placeId || i}
               className={'addr-item' + (i === active ? ' active' : '')}
               onMouseDown={(e) => { e.preventDefault(); selectSuggestion(s) }}
               onMouseEnter={() => setActive(i)}
