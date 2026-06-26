@@ -4,10 +4,10 @@ import Link from 'next/link'
 import { QUIZ_STEPS } from '../lib/quiz'
 
 /* ---------- helpers ---------- */
-async function callAPI(system, user, images) {
+async function callAPI(system, user, images, pdf) {
   const res = await fetch('/api/claude', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ system, user, images }),
+    body: JSON.stringify({ system, user, images, pdf }),
   })
   const data = await res.json()
   if (!res.ok) throw new Error(data.error || 'API error')
@@ -193,9 +193,23 @@ function LeaseReview({ profile }) {
   const [data, setData] = useState(null)
   const [raw, setRaw] = useState('')
   const [loading, setLoading] = useState(false)
+  const [pdfData, setPdfData] = useState(null)
+  const [pdfName, setPdfName] = useState('')
+  const [reviewedAt, setReviewedAt] = useState('')
+  const fileRef = useRef()
+
+  function onPdf(e) {
+    const f = e.target.files?.[0]
+    if (!f) return
+    if (f.size > 4 * 1024 * 1024) { setRaw('That PDF is over 4MB. Try a smaller file or paste the text instead.'); e.target.value = ''; return }
+    const r = new FileReader()
+    r.onload = () => { setPdfData(r.result); setPdfName(f.name); setRaw('') }
+    r.readAsDataURL(f)
+    e.target.value = ''
+  }
 
   async function run() {
-    if (!text.trim()) return
+    if (!text.trim() && !pdfData) return
     setLoading(true); setData(null); setRaw('')
 
     // Build personalization context from profile
@@ -208,11 +222,14 @@ function LeaseReview({ profile }) {
     const ctxStr = ctx.length > 0 ? `Additional context about this renter: ${ctx.join(', ')}. Prioritize flags relevant to these circumstances.` : ''
 
     try {
+      const userMsg = pdfData
+        ? ('Analyze the attached lease PDF.' + (text.trim() ? '\n\nAdditional notes from the renter:\n' + text : ''))
+        : ('Lease:\n\n' + text)
       const out = await callAPI(
         `You are a renter protection assistant. ${ctxStr} Analyze the lease and respond with ONLY valid JSON, no markdown fences, in this exact shape: {"summary":"2 to 3 sentence plain English summary","score":<integer 0-100 how renter-friendly this lease is, higher is safer>,"verdict":"short phrase like Sign with caution","flags":[{"title":"short","detail":"one sentence","severity":"high|medium|low"}],"questions":["question to ask landlord"]}. Include 3 to 6 flags and 3 to 5 questions.`,
-        'Lease:\n\n' + text)
+        userMsg, null, pdfData)
       const clean = out.replace(/```json|```/g, '').trim()
-      try { setData(JSON.parse(clean)) } catch { setRaw(out) }
+      try { setData(JSON.parse(clean)); setReviewedAt(new Date().toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })) } catch { setRaw(out) }
     } catch { setRaw('Something went wrong. Please try again.') }
     setLoading(false)
   }
@@ -223,15 +240,35 @@ function LeaseReview({ profile }) {
       <div className="c">
         <h2>AI lease risk review</h2>
         <p className="d">Paste your lease. We score how renter friendly it is, flag the clauses that cost you money, and hand you the questions to ask before signing.</p>
-        <span className="lab">Lease text</span>
-        <textarea className="ta2" style={{ minHeight: 150 }} placeholder="Paste your full lease here..." value={text} onChange={e => setText(e.target.value)} />
+        <span className="lab">Lease document</span>
+        <div className="lease-upload" onClick={() => fileRef.current?.click()}>
+          {pdfName ? (
+            <div className="lease-file">
+              <span className="lf-ico">📄</span>
+              <span className="lf-name">{pdfName}</span>
+              <button className="lf-x" onClick={(e) => { e.stopPropagation(); setPdfData(null); setPdfName('') }}>×</button>
+            </div>
+          ) : (
+            <>
+              <div style={{ fontSize: 24 }}>📄</div>
+              <div style={{ fontWeight: 600, marginTop: 6 }}>Upload lease PDF</div>
+              <div style={{ fontSize: 12.5, color: 'var(--ink-soft)', marginTop: 2 }}>Tap to choose a PDF file</div>
+            </>
+          )}
+        </div>
+        <input ref={fileRef} type="file" accept="application/pdf" onChange={onPdf} style={{ display: 'none' }} />
+
+        <div className="lease-or"><span>or paste text</span></div>
+
+        <textarea className="ta2" style={{ minHeight: 130 }} placeholder="Paste your full lease here..." value={text} onChange={e => setText(e.target.value)} />
         <div style={{ marginTop: 14 }}>
-          <button className="bp" onClick={run} disabled={loading}>{loading ? <><i className="spin2" /> Analyzing</> : 'Analyze lease'}</button>
+          <button className="bp" onClick={run} disabled={loading || (!text.trim() && !pdfData)}>{loading ? <><i className="spin2" /> Analyzing</> : 'Analyze lease'}</button>
         </div>
       </div>
 
       {data && (
         <div className="c">
+          {reviewedAt && <div className="review-stamp">🔒 Reviewed {reviewedAt}</div>}
           <div className="ring-wrap">
             <svg className="ring" viewBox="0 0 100 100">
               <circle className="bgc" cx="50" cy="50" r="40" />
