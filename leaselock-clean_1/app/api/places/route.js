@@ -1,6 +1,6 @@
 // Server-side proxy for Geoapify Address Autocomplete.
-// Keeps GEOAPIFY_API_KEY out of the browser. Free tier, no card required.
-// If the key is missing, returns empty results so the input degrades to a plain text field.
+// Edge runtime: minimal cold start, runs close to the user, key stays server-side.
+export const runtime = 'edge'
 
 const KEY = process.env.GEOAPIFY_API_KEY
 
