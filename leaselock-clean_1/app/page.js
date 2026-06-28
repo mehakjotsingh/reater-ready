@@ -13,7 +13,7 @@ export default function Landing() {
             <span className="eyebrow eyebrow-dark">For renters who want to stay protected</span>
             <h1>Move in ready. <span className="hl-dark">Move out clean.</span></h1>
             <p className="hero-sub hero-sub-dark">
-              Set up your renter protection in five minutes. AI lease review, guided move-in inspection, maintenance tracking, and the tools that keep your deposit safe from day one.
+              Set up your renter protection in five minutes. AI lease review, guided move-in inspection, roommate agreements, and the tools that keep your deposit safe from day one.
             </p>
             <div className="hero-cta">
               <Link href="/app" className="btn btn-mint btn-lg">Set up your protection →</Link>
@@ -117,6 +117,21 @@ export default function Landing() {
               <div className="fv-card"><div className="h">🛏 Bedroom · 4 photos</div><div className="s">Scuff on north wall, stain near closet</div></div>
               <div className="fv-card"><div className="h">🚿 Bathroom · 2 photos</div><div className="s">Cracked tile behind door logged</div></div>
               <div><span className="fv-chip">🔒 Report locked and delivered</span></div>
+            </div>
+          </div>
+
+          <div className="feat reveal">
+            <div className="feat-text">
+              <div className="num">Living together</div>
+              <h3>A roommate agreement everyone actually signs.</h3>
+              <p>Add your roommates, fill in what you have agreed on, and the AI turns it into a clean, fair agreement. Rent splits, chores, quiet hours, guests, and move-out notice, all in plain English so nobody is relying on memory six months in.</p>
+              <ul className="feat-list"><li>Covers rent, utilities, deposit, chores, guests, and more</li><li>Written balanced and neutral for every roommate</li><li>Each roommate signs, then print it or save it as proof</li></ul>
+              <Link href="/app" className="btn btn-mint" style={{ marginTop: 18 }}>Write your agreement →</Link>
+            </div>
+            <div className="feat-visual">
+              <div className="fv-card"><div className="h">🤝 Rent split</div><div className="s">Alex $900, Sam $750, both due the 1st</div></div>
+              <div className="fv-card"><div className="h">🧹 Chores and quiet hours</div><div className="s">Weekly cleaning rotation, quiet after 11pm</div></div>
+              <div><span className="fv-chip">✍️ Signed by all 3 roommates</span></div>
             </div>
           </div>
 

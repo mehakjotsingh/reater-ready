@@ -699,7 +699,7 @@ function RoommateAgreement() {
   return (
     <>
       <div className="c no-print">
-        <h2>Roommate agreement <span className="up">Premium</span></h2>
+        <h2>Roommate agreement</h2>
         <p className="d">Put your living arrangement in writing so everyone is on the same page from day one. Add your roommates, fill in what you have agreed on, and the AI turns it into a clean agreement you can all sign. A written record is what prevents the he-said-she-said later.</p>
 
         <span className="lab">Roommates</span>
