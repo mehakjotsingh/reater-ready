@@ -45,10 +45,7 @@ export default function AddressAutocomplete({ value, onChange, placeholder, clas
         const data = await res.json()
         sugg = (data.results || []).map(r => ({ placeId: r.place_id, text: r.formatted }))
       } else {
-        const res = await fetch('/api/places', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'autocomplete', input }),
+        const res = await fetch(`/api/places?q=${encodeURIComponent(input)}`, {
           signal: controller.signal,
         })
         const data = await res.json()
