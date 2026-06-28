@@ -238,6 +238,7 @@ function Dashboard({ go, profile }) {
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button className="bg2" onClick={() => go('lease')}>Review a lease</button>
           <button className="bg2" onClick={() => go('movein')}>Document move-in</button>
+          <button className="bg2" onClick={() => go('roommates')}>Write a roommate agreement</button>
           <button className="bg2" onClick={() => go('maint')}>Log a maintenance issue</button>
           <button className="bg2" onClick={() => go('rent')}>Log rent payment</button>
         </div>
@@ -642,12 +643,136 @@ function MoveInLauncher() {
   )
 }
 
+/* ---------- Roommate agreement ---------- */
+const RM_CLAUSES = [
+  ['rent', 'Rent split', 'How is monthly rent divided? e.g. split evenly, or Alex $900 / Sam $750'],
+  ['utilities', 'Utilities and bills', 'How are electric, water, internet, and other shared bills split?'],
+  ['deposit', 'Security deposit', 'Who paid the deposit, and how is it returned when someone moves out?'],
+  ['cleaning', 'Cleaning and chores', 'How are cleaning and shared chores handled? e.g. weekly rotation'],
+  ['quiet', 'Quiet hours', 'Any quiet hours or noise expectations?'],
+  ['guests', 'Guests and overnight visitors', 'Policy on guests and how long they can stay'],
+  ['shared', 'Shared groceries and supplies', 'How are shared groceries, supplies, or furniture handled?'],
+  ['pets', 'Pets', 'Any pet rules or responsibilities?'],
+  ['notice', 'Moving out notice', 'How much notice before a roommate moves out? e.g. 30 days'],
+  ['custom', 'Anything else', 'Other house rules you want in writing'],
+]
+
+const RM_BLANK = { address: '', startDate: '', roommates: [], terms: {}, generated: '', generatedAt: '', signatures: {} }
+
+function RoommateAgreement() {
+  const [data, setData] = useState(RM_BLANK)
+  const [name, setName] = useState('')
+  const [busy, setBusy] = useState(false)
+  useEffect(() => { setData(load('ll_roommate', RM_BLANK)) }, [])
+  function persist(n) { setData(n); save('ll_roommate', n) }
+  function patch(p) { persist({ ...data, ...p }) }
+  function addRoommate() {
+    const nm = name.trim(); if (!nm) return
+    if (data.roommates.some(r => r.name.toLowerCase() === nm.toLowerCase())) { setName(''); return }
+    patch({ roommates: [...data.roommates, { id: uid(), name: nm }] }); setName('')
+  }
+  function removeRoommate(id) {
+    const sigs = { ...data.signatures }; delete sigs[id]
+    persist({ ...data, roommates: data.roommates.filter(r => r.id !== id), signatures: sigs })
+  }
+  function setTerm(k, v) { persist({ ...data, terms: { ...data.terms, [k]: v } }) }
+  const filled = RM_CLAUSES.filter(([k]) => (data.terms[k] || '').trim())
+
+  async function generate() {
+    if (data.roommates.length < 2) { alert('Add at least two roommates.'); return }
+    if (filled.length === 0) { alert('Fill in at least one section.'); return }
+    setBusy(true)
+    try {
+      const lines = filled.map(([k, label]) => `${label}: ${data.terms[k].trim()}`).join('\n')
+      const who = data.roommates.map(r => r.name).join(', ')
+      const text = await callAPI(
+        'You are a roommate agreement assistant. Turn the provided points into a clear, fair, plain-English roommate living agreement. Organize it into numbered sections with short headings. Keep it balanced and neutral toward every roommate. Only use the terms provided, do not invent specifics that were not given. Open with the roommate names, the address, and the start date. End with a short line stating that each roommate should sign and date below to show they agree. Under 450 words. Plain text only, no markdown symbols, no asterisks.',
+        `Roommates: ${who}\nAddress: ${data.address || 'not provided'}\nStart date: ${data.startDate || 'not provided'}\n\nAgreed points:\n${lines}`
+      )
+      persist({ ...data, generated: text, generatedAt: new Date().toISOString(), signatures: {} })
+    } catch (e) { alert('Could not generate the agreement. Please try again.') }
+    setBusy(false)
+  }
+  function sign(id) { persist({ ...data, signatures: { ...data.signatures, [id]: new Date().toISOString() } }) }
+  function unsign(id) { const s = { ...data.signatures }; delete s[id]; persist({ ...data, signatures: s }) }
+
+  return (
+    <>
+      <div className="c no-print">
+        <h2>Roommate agreement <span className="up">Premium</span></h2>
+        <p className="d">Put your living arrangement in writing so everyone is on the same page from day one. Add your roommates, fill in what you have agreed on, and the AI turns it into a clean agreement you can all sign. A written record is what prevents the he-said-she-said later.</p>
+
+        <span className="lab">Roommates</span>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+          <input className="inp" style={{ flex: 1 }} placeholder="Add a roommate name" value={name} onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addRoommate() } }} />
+          <button className="bg2" onClick={addRoommate} disabled={!name.trim()}>Add</button>
+        </div>
+        {data.roommates.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+            {data.roommates.map(r => (
+              <span key={r.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'var(--mint-soft)', color: 'var(--brand)', fontWeight: 600, fontSize: 14, padding: '7px 12px', borderRadius: 999 }}>
+                {r.name}
+                <button onClick={() => removeRoommate(r.id)} style={{ background: 'none', border: 'none', color: 'var(--brand)', cursor: 'pointer', fontSize: 15, lineHeight: 1, padding: 0 }}>×</button>
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div className="form-row">
+          <div><span className="lab">Address (optional)</span><input className="inp" placeholder="123 Main St, Apt 4B" value={data.address} onChange={e => patch({ address: e.target.value })} /></div>
+          <div><span className="lab">Start date (optional)</span><input className="inp" type="date" value={data.startDate} onChange={e => patch({ startDate: e.target.value })} /></div>
+        </div>
+
+        <span className="lab">What have you agreed on?</span>
+        <p className="d" style={{ marginTop: 2, marginBottom: 12 }}>Fill in only the ones that apply. Leave the rest blank.</p>
+        {RM_CLAUSES.map(([k, label, ph]) => (
+          <div key={k} style={{ marginBottom: 12 }}>
+            <span className="lab">{label}</span>
+            <textarea className="ta2" style={{ minHeight: 54 }} placeholder={ph} value={data.terms[k] || ''} onChange={e => setTerm(k, e.target.value)} />
+          </div>
+        ))}
+
+        <button className="bp" onClick={generate} disabled={busy}>{busy ? 'Writing your agreement...' : data.generated ? 'Regenerate agreement' : 'Generate agreement'}</button>
+      </div>
+
+      {data.generated && (
+        <div className="c">
+          <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <h2 style={{ flex: 1, margin: 0 }}>Your agreement</h2>
+            <button className="bg2" onClick={() => window.print()}>Print / Save PDF</button>
+          </div>
+          <div className="res">{data.generated}</div>
+
+          <div style={{ marginTop: 18 }}>
+            <span className="lab">Signatures</span>
+            <p className="d no-print" style={{ marginTop: 2, marginBottom: 6 }}>Each roommate taps to sign. Printing also leaves a line for a handwritten signature.</p>
+            {data.roommates.map(r => {
+              const signed = data.signatures[r.id]
+              return (
+                <div key={r.id} className="rm-sign">
+                  <div className="rm-sign-name">{r.name}</div>
+                  {signed
+                    ? <div className="rm-sign-done">✓ Signed {new Date(signed).toLocaleDateString()} <button className="no-print" onClick={() => unsign(r.id)} style={{ marginLeft: 8, background: 'none', border: 'none', color: 'var(--ink-soft)', cursor: 'pointer', fontSize: 12, textDecoration: 'underline' }}>undo</button></div>
+                    : <button className="bg2 no-print" style={{ padding: '6px 14px', fontSize: 13 }} onClick={() => sign(r.id)}>Sign as {r.name}</button>}
+                  <div className="rm-sign-line" />
+                </div>
+              )
+            })}
+          </div>
+          <p className="d no-print" style={{ marginTop: 14, fontSize: 12.5 }}>This is a private record stored on this device. It is not legal advice. For binding terms, check your lease and local law.</p>
+        </div>
+      )}
+    </>
+  )
+}
+
 /* ---------- App shell ---------- */
 // Messages tab removed
 const NAV = [
   ['home', 'Dashboard', '◫'],
   ['lease', 'Lease review', '📄'],
   ['movein', 'Move-in report', '📸'],
+  ['roommates', 'Roommate agreement', '🤝'],
   ['calendar', 'Lease calendar', '📅'],
   ['maint', 'Maintenance', '🔧'],
   ['rent', 'Rent log', '💵'],
@@ -656,6 +781,7 @@ const TITLES = {
   home: 'Dashboard',
   lease: 'Lease review',
   movein: 'Move-in report',
+  roommates: 'Roommate agreement',
   calendar: 'Lease calendar',
   maint: 'Maintenance tracker',
   rent: 'Rent log',
@@ -725,6 +851,7 @@ export default function App() {
           {tab === 'home' && <Dashboard go={setTab} profile={profile} />}
           {tab === 'lease' && <LeaseReview profile={profile} />}
           {tab === 'movein' && <MoveInLauncher />}
+          {tab === 'roommates' && <RoommateAgreement />}
           {tab === 'calendar' && <Calendar />}
           {tab === 'maint' && <Maintenance />}
           {tab === 'rent' && <RentLog />}
