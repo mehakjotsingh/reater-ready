@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4'
+const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6'
 
 function getClient() {
   const apiKey = process.env.ANTHROPIC_API_KEY
