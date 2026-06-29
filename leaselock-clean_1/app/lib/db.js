@@ -24,6 +24,7 @@ export async function activeHouseholdId() {
   const supabase = createClient()
   const { data, error } = await supabase.rpc('ensure_household')
   if (error) throw error
+  if (!data) throw new Error('Could not set up your lease. Try opening Lease & roommates first.')
   _householdId = data
   return _householdId
 }
@@ -34,22 +35,38 @@ export async function getHousehold() {
   const hid = await activeHouseholdId()
   if (!hid) return null
   const user = await getCurrentUser()
-  const [{ data: hh, error: e1 }, { data: members, error: e2 }] = await Promise.all([
-    supabase.from('households').select('id, name, invite_code, created_by, created_at').eq('id', hid).maybeSingle(),
-    supabase
-      .from('household_members')
-      .select('user_id, role, joined_at, profiles!household_members_profile_fk(full_name, avatar_url)')
-      .eq('household_id', hid)
-      .order('joined_at', { ascending: true }),
-  ])
+
+  const { data: hh, error: e1 } = await supabase
+    .from('households')
+    .select('id, name, invite_code, created_by, created_at')
+    .eq('id', hid)
+    .maybeSingle()
   if (e1) throw e1
-  if (e2) throw e2
   if (!hh) return null
+
+  const { data: members, error: e2 } = await supabase
+    .from('household_members')
+    .select('user_id, role, joined_at')
+    .eq('household_id', hid)
+    .order('joined_at', { ascending: true })
+  if (e2) throw e2
+
+  const ids = (members || []).map((m) => m.user_id)
+  let profileMap = {}
+  if (ids.length) {
+    const { data: profiles, error: e3 } = await supabase
+      .from('profiles')
+      .select('id, full_name, avatar_url')
+      .in('id', ids)
+    if (e3) throw e3
+    profileMap = Object.fromEntries((profiles || []).map((p) => [p.id, p]))
+  }
+
   const list = (members || []).map((m) => ({
     userId: m.user_id,
     role: m.role,
-    name: m.profiles?.full_name || 'Roommate',
-    avatar: m.profiles?.avatar_url || null,
+    name: profileMap[m.user_id]?.full_name || 'Roommate',
+    avatar: profileMap[m.user_id]?.avatar_url || null,
     isYou: user && m.user_id === user.id,
   }))
   return {

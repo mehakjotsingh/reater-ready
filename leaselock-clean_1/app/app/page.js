@@ -501,7 +501,7 @@ function Calendar() {
       const row = await db.addCalendar({ type, title: title || def[1], date })
       setItems(prev => [...prev, row])
       setTitle(''); setDate('')
-    } catch { alert('Could not save. Please try again.') }
+    } catch (e) { alert('Could not save. ' + (e?.message || 'Please try again.')) }
   }
   async function remove(id) {
     try { await db.deleteCalendar(id); setItems(prev => prev.filter(x => x.id !== id)) } catch {}
@@ -556,7 +556,7 @@ function Maintenance() {
       const row = await db.addMaintenance({ title, room, note })
       setItems(prev => [row, ...prev])
       setTitle(''); setNote('')
-    } catch { alert('Could not save. Please try again.') }
+    } catch (e) { alert('Could not save. ' + (e?.message || 'Please try again.')) }
   }
   async function remove(id) {
     try { await db.deleteMaintenance(id); setItems(prev => prev.filter(x => x.id !== id)) } catch {}
@@ -626,7 +626,7 @@ function RentLog() {
       const row = await db.addRent({ month, amount, method })
       setItems(prev => [row, ...prev])
       setAmount('')
-    } catch { alert('Could not save. Please try again.') }
+    } catch (e) { alert('Could not save. ' + (e?.message || 'Please try again.')) }
   }
   async function remove(id) {
     try { await db.deleteRent(id); setItems(prev => prev.filter(x => x.id !== id)) } catch {}
@@ -820,7 +820,13 @@ function Household() {
   const [busy, setBusy] = useState('')
 
   async function reload() {
-    try { const h = await db.getHousehold(); setHh(h); setNameInput(h?.name || '') } catch {}
+    try {
+      const h = await db.getHousehold()
+      setHh(h)
+      setNameInput(h?.name || '')
+    } catch (e) {
+      console.error('getHousehold failed', e)
+    }
     setLoading(false)
   }
   useEffect(() => {
@@ -828,10 +834,17 @@ function Household() {
     reload()
   }, [])
 
-  const inviteLink = hh && origin ? `${origin}/join?code=${hh.inviteCode}` : ''
+  const base = origin || (typeof window !== 'undefined' ? window.location.origin : '')
+  const inviteLink = hh?.inviteCode ? `${base}/join?code=${hh.inviteCode}` : ''
 
   async function copyLink() {
-    try { await navigator.clipboard.writeText(inviteLink); setCopied(true); setTimeout(() => setCopied(false), 1800) } catch {}
+    const text = inviteLink || hh?.inviteCode || ''
+    if (!text) return
+    try {
+      await navigator.clipboard.writeText(inviteLink || hh.inviteCode)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1800)
+    } catch {}
   }
   async function saveName() {
     if (!nameInput.trim() || nameInput.trim() === hh?.name) return
@@ -842,7 +855,11 @@ function Household() {
   async function regenerate() {
     if (!confirm('Generate a new invite link? The old link will stop working.')) return
     setBusy('regen')
-    try { await db.regenerateInvite(); await reload() } catch { alert('Could not regenerate the link.') }
+    try {
+      const code = await db.regenerateInvite()
+      if (code) setHh((h) => (h ? { ...h, inviteCode: code } : h))
+      await reload()
+    } catch (e) { alert('Could not regenerate the link. ' + (e?.message || '')) }
     setBusy('')
   }
   async function join() {
@@ -893,10 +910,15 @@ function Household() {
       <div className="c">
         <h2>Invite roommates</h2>
         <p className="d">Share this link with your roommates. They sign in with Google and instantly join this lease.</p>
+        <span className="lab">Invite code</span>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <input className="inp" style={{ flex: 1, fontFamily: 'monospace', letterSpacing: '0.04em' }} readOnly value={hh?.inviteCode || ''} placeholder="Loading…" onFocus={e => e.target.select()} />
+          <button className="bg2" style={{ padding: '0 14px' }} onClick={() => { if (hh?.inviteCode) { navigator.clipboard.writeText(hh.inviteCode); setCopied(true); setTimeout(() => setCopied(false), 1800) } }}>{copied ? '✓' : 'Copy code'}</button>
+        </div>
         <span className="lab">Invite link</span>
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-          <input className="inp" style={{ flex: 1 }} readOnly value={inviteLink} onFocus={e => e.target.select()} />
-          <button className="bp" style={{ padding: '0 18px' }} onClick={copyLink}>{copied ? '✓ Copied' : 'Copy'}</button>
+          <input className="inp" style={{ flex: 1 }} readOnly value={inviteLink} placeholder={hh?.inviteCode ? 'Building link…' : 'No invite code yet'} onFocus={e => e.target.select()} />
+          <button className="bp" style={{ padding: '0 18px' }} onClick={copyLink} disabled={!inviteLink}>{copied ? '✓ Copied' : 'Copy link'}</button>
         </div>
         <button className="bg2" onClick={regenerate} disabled={busy === 'regen'} style={{ fontSize: 13 }}>{busy === 'regen' ? 'Working…' : '↺ Generate a new link'}</button>
       </div>
