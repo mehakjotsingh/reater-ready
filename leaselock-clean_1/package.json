@@ -5,7 +5,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "db:push": "supabase db push",
+    "db:link": "supabase link --project-ref hvondhskwmdiufjikmzd",
+    "db:new": "supabase migration new"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.20.1",
