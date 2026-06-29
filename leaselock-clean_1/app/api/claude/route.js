@@ -1,9 +1,20 @@
 import Anthropic from '@anthropic-ai/sdk'
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514'
+
+function getClient() {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) {
+    throw new Error(
+      'AI is not configured. Add ANTHROPIC_API_KEY to Vercel → Settings → Environment Variables, then redeploy.'
+    )
+  }
+  return new Anthropic({ apiKey })
+}
 
 export async function POST(req) {
   try {
+    const client = getClient()
     const { system, user, images, pdf } = await req.json()
     const content = []
     if (pdf) {
@@ -19,13 +30,15 @@ export async function POST(req) {
     }
     content.push({ type: 'text', text: user })
     const msg = await client.messages.create({
-      model: 'claude-opus-4-5',
+      model: MODEL,
       max_tokens: 1024,
       system,
       messages: [{ role: 'user', content }],
     })
     return Response.json({ text: msg.content[0].text })
   } catch (e) {
-    return Response.json({ error: e.message }, { status: 500 })
+    const message = e?.message || 'AI request failed'
+    const status = message.includes('ANTHROPIC_API_KEY') ? 503 : 500
+    return Response.json({ error: message }, { status })
   }
 }

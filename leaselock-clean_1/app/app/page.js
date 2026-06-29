@@ -304,7 +304,14 @@ function LeaseReview({ profile }) {
         setReviewedAt(new Date().toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }))
         db.saveLeaseReview(parsed).catch(() => {})
       } catch { setRaw(out) }
-    } catch { setRaw('Something went wrong. Please try again.') }
+    } catch (e) {
+      const msg = e?.message || ''
+      if (msg.includes('ANTHROPIC_API_KEY') || msg.includes('authentication') || msg.includes('not configured')) {
+        setRaw('AI lease review is not set up yet. Add ANTHROPIC_API_KEY in Vercel → Settings → Environment Variables, then redeploy.')
+      } else {
+        setRaw(msg || 'Something went wrong. Please try again.')
+      }
+    }
     setLoading(false)
   }
   const score = data?.score ?? 0
