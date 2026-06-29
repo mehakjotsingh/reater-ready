@@ -4,6 +4,7 @@ import Link from 'next/link'
 import AddressAutocomplete from '../components/AddressAutocomplete'
 import Logo from '../components/Logo'
 import { profileToReadable } from '../lib/quiz'
+import { getProfile } from '../lib/db'
 
 async function callAPI(system, user, images) {
   const res = await fetch('/api/claude', {
@@ -86,7 +87,7 @@ export default function Report() {
   const [lockTs, setLockTs] = useState('')
   const [profile, setProfile] = useState(null)
   useEffect(() => {
-    try { const v = localStorage.getItem('rr_profile'); if (v) setProfile(JSON.parse(v)) } catch {}
+    getProfile().then(p => { if (p) setProfile(p) }).catch(() => {})
   }, [])
   const profileRows = profileToReadable(profile)
   const fileRef = useRef()

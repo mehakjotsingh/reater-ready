@@ -1,8 +1,10 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import Logo from '../components/Logo'
 import { QUIZ_STEPS } from '../lib/quiz'
+import * as db from '../lib/db'
 
 /* ---------- helpers ---------- */
 async function callAPI(system, user, images, pdf) {
@@ -14,11 +16,6 @@ async function callAPI(system, user, images, pdf) {
   if (!res.ok) throw new Error(data.error || 'API error')
   return data.text
 }
-function load(key, fallback) {
-  if (typeof window === 'undefined') return fallback
-  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback } catch { return fallback }
-}
-function save(key, val) { try { localStorage.setItem(key, JSON.stringify(val)) } catch {} }
 function uid() { return Math.random().toString(36).slice(2, 9) }
 function daysUntil(iso) {
   const d = new Date(iso + 'T00:00:00'); const now = new Date(); now.setHours(0, 0, 0, 0)
@@ -64,7 +61,6 @@ function Quiz({ onComplete }) {
         setStep(s => s + 1)
         setSelected(null)
       } else {
-        save('rr_profile', next)
         onComplete(next)
       }
     }, 280)
@@ -177,7 +173,14 @@ function Dashboard({ go, profile }) {
   const [cal, setCal] = useState([])
   const [maint, setMaint] = useState([])
   const [rent, setRent] = useState([])
-  useEffect(() => { setCal(load('ll_cal', [])); setMaint(load('ll_maint', [])); setRent(load('ll_rent', [])) }, [])
+  useEffect(() => {
+    (async () => {
+      try {
+        const [c, m, r] = await Promise.all([db.listCalendar(), db.listMaintenance(), db.listRent()])
+        setCal(c); setMaint(m); setRent(r)
+      } catch {}
+    })()
+  }, [])
   const upcoming = [...cal].filter(e => daysUntil(e.date) >= 0).sort((a, b) => daysUntil(a.date) - daysUntil(b.date)).slice(0, 4)
   const openIssues = maint.filter(m => m.status !== 'done').length
 
@@ -479,13 +482,18 @@ function Calendar() {
   const [type, setType] = useState('notice')
   const [title, setTitle] = useState('')
   const [date, setDate] = useState('')
-  useEffect(() => { setItems(load('ll_cal', [])) }, [])
-  function persist(next) { setItems(next); save('ll_cal', next) }
-  function add() {
+  useEffect(() => { db.listCalendar().then(setItems).catch(() => {}) }, [])
+  async function add() {
     if (!date) { alert('Pick a date.'); return }
     const def = EVT.find(e => e[0] === type)
-    persist([...items, { id: uid(), type, title: title || def[1], date }])
-    setTitle(''); setDate('')
+    try {
+      const row = await db.addCalendar({ type, title: title || def[1], date })
+      setItems(prev => [...prev, row])
+      setTitle(''); setDate('')
+    } catch { alert('Could not save. Please try again.') }
+  }
+  async function remove(id) {
+    try { await db.deleteCalendar(id); setItems(prev => prev.filter(x => x.id !== id)) } catch {}
   }
   const sorted = [...items].sort((a, b) => new Date(a.date) - new Date(b.date))
   return (
@@ -514,7 +522,7 @@ function Calendar() {
                 <span className="li-ic">{def[2]}</span>
                 <div className="li-main"><b>{it.title}</b><span>{new Date(it.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span></div>
                 <div className="li-right"><div className={`count ${d < 0 ? 'past' : d <= 7 ? 'soon' : 'ok'}`}>{d < 0 ? 'Passed' : d === 0 ? 'Today' : `${d}d`}</div></div>
-                <button className="x" onClick={() => persist(items.filter(x => x.id !== it.id))}>×</button>
+                <button className="x" onClick={() => remove(it.id)}>×</button>
               </div>
             )
           })}
@@ -530,21 +538,30 @@ function Maintenance() {
   const [items, setItems] = useState([])
   const [title, setTitle] = useState(''); const [room, setRoom] = useState('Kitchen'); const [note, setNote] = useState('')
   const [busy, setBusy] = useState('')
-  useEffect(() => { setItems(load('ll_maint', [])) }, [])
-  function persist(n) { setItems(n); save('ll_maint', n) }
-  function add() {
+  useEffect(() => { db.listMaintenance().then(setItems).catch(() => {}) }, [])
+  async function add() {
     if (!title.trim()) { alert('What is the issue?'); return }
-    persist([{ id: uid(), title, room, note, status: 'open', created: new Date().toISOString(), msg: '' }, ...items])
-    setTitle(''); setNote('')
+    try {
+      const row = await db.addMaintenance({ title, room, note })
+      setItems(prev => [row, ...prev])
+      setTitle(''); setNote('')
+    } catch { alert('Could not save. Please try again.') }
   }
-  function setStatus(id, s) { persist(items.map(m => m.id === id ? { ...m, status: s } : m)) }
+  async function remove(id) {
+    try { await db.deleteMaintenance(id); setItems(prev => prev.filter(x => x.id !== id)) } catch {}
+  }
+  async function setStatus(id, s) {
+    try { const row = await db.updateMaintenance(id, { status: s }); setItems(prev => prev.map(m => m.id === id ? row : m)) } catch {}
+  }
   async function draft(m) {
     setBusy(m.id)
     try {
       const msg = await callAPI(
         'You are a renter communication assistant. Write a short professional maintenance request to the landlord. Include a subject line. Under 120 words. Plain text, no markdown symbols.',
         `Issue in the ${m.room}: ${m.title}. ${m.note || ''}`)
-      persist(items.map(x => x.id === m.id ? { ...x, msg, status: x.status === 'open' ? 'sent' : x.status } : x))
+      const newStatus = m.status === 'open' ? 'sent' : m.status
+      const row = await db.updateMaintenance(m.id, { msg, status: newStatus })
+      setItems(prev => prev.map(x => x.id === m.id ? row : x))
     } catch {}
     setBusy('')
   }
@@ -570,7 +587,7 @@ function Maintenance() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
                 <b style={{ flex: 1, fontWeight: 600 }}>{m.title}</b>
                 <span className={`status-pill ${ST[m.status]}`}>{STLAB[m.status]}</span>
-                <button className="x" onClick={() => persist(items.filter(x => x.id !== m.id))}>×</button>
+                <button className="x" onClick={() => remove(m.id)}>×</button>
               </div>
               <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 10 }}>{m.room} · logged {new Date(m.created).toLocaleDateString()}</div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -591,12 +608,17 @@ function Maintenance() {
 function RentLog() {
   const [items, setItems] = useState([])
   const [month, setMonth] = useState(''); const [amount, setAmount] = useState(''); const [method, setMethod] = useState('Bank transfer')
-  useEffect(() => { setItems(load('ll_rent', [])) }, [])
-  function persist(n) { setItems(n); save('ll_rent', n) }
-  function add() {
+  useEffect(() => { db.listRent().then(setItems).catch(() => {}) }, [])
+  async function add() {
     if (!month || !amount) { alert('Add the month and amount.'); return }
-    persist([{ id: uid(), month, amount, method, paid: new Date().toISOString() }, ...items])
-    setAmount('')
+    try {
+      const row = await db.addRent({ month, amount, method })
+      setItems(prev => [row, ...prev])
+      setAmount('')
+    } catch { alert('Could not save. Please try again.') }
+  }
+  async function remove(id) {
+    try { await db.deleteRent(id); setItems(prev => prev.filter(x => x.id !== id)) } catch {}
   }
   const total = items.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0)
   return (
@@ -623,7 +645,7 @@ function RentLog() {
               <span className="li-ic">💵</span>
               <div className="li-main"><b>{new Date(r.month + '-01T00:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</b><span>{r.method} · logged {new Date(r.paid).toLocaleDateString()}</span></div>
               <div className="li-right"><div className="count ok">${parseFloat(r.amount).toLocaleString()}</div></div>
-              <button className="x" onClick={() => persist(items.filter(x => x.id !== r.id))}>×</button>
+              <button className="x" onClick={() => remove(r.id)}>×</button>
             </div>
           ))}
       </div>
@@ -663,8 +685,8 @@ function RoommateAgreement() {
   const [data, setData] = useState(RM_BLANK)
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
-  useEffect(() => { setData(load('ll_roommate', RM_BLANK)) }, [])
-  function persist(n) { setData(n); save('ll_roommate', n) }
+  useEffect(() => { db.getRoommate().then(setData).catch(() => {}) }, [])
+  function persist(n) { setData(n); db.saveRoommate(n).catch(() => {}) }
   function patch(p) { persist({ ...data, ...p }) }
   function addRoommate() {
     const nm = name.trim(); if (!nm) return
@@ -788,30 +810,45 @@ const TITLES = {
 }
 
 export default function App() {
+  const router = useRouter()
   const [tab, setTab] = useState('home')
   const [profile, setProfile] = useState(null)
   const [quizDone, setQuizDone] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const forceSetup = typeof window !== 'undefined' &&
-      new URLSearchParams(window.location.search).get('setup') === 'true'
-    if (forceSetup) {
-      save('rr_profile', null)
-      setProfile(null)
-      setQuizDone(false)
-      return
-    }
-    const saved = load('rr_profile', null)
-    if (saved) {
-      setProfile(saved)
-      setQuizDone(true)
-    }
+    (async () => {
+      const forceSetup = typeof window !== 'undefined' &&
+        new URLSearchParams(window.location.search).get('setup') === 'true'
+      try {
+        const p = await db.getProfile()
+        setProfile(p)
+        setQuizDone(!forceSetup && db.quizComplete(p))
+      } catch {}
+      setLoading(false)
+    })()
   }, [])
 
-  function handleQuizComplete(answers) {
-    setProfile(answers)
+  async function handleQuizComplete(answers) {
+    setProfile({ ...(profile || {}), ...answers })
     setQuizDone(true)
     setTab('movein')
+    try { await db.saveQuizAnswers(answers) } catch {}
+  }
+
+  async function handleSignOut() {
+    try { await db.signOut() } catch {}
+    router.push('/')
+    router.refresh()
+  }
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink-soft)', fontSize: 15 }}>
+        <style>{`@keyframes ll-spin{to{transform:rotate(360deg)}}`}</style>
+        Loading your dashboard…
+      </div>
+    )
   }
 
   // Show quiz until completed
@@ -834,10 +871,16 @@ export default function App() {
         </nav>
         <div className="foot">
           <button
-            onClick={() => { save('rr_profile', null); setQuizDone(false); setProfile(null) }}
+            onClick={() => { setQuizDone(false) }}
             style={{ background: 'none', border: 'none', color: 'var(--ink-soft)', fontSize: 13, cursor: 'pointer', marginBottom: 8, display: 'block' }}
           >
             ↺ Redo setup
+          </button>
+          <button
+            onClick={handleSignOut}
+            style={{ background: 'none', border: 'none', color: 'var(--ink-soft)', fontSize: 13, cursor: 'pointer', marginBottom: 8, display: 'block' }}
+          >
+            ⇥ Sign out
           </button>
           <Link href="/">← Back to site</Link>
         </div>
