@@ -22,9 +22,9 @@ export function clearHouseholdCache() { _householdId = null }
 export async function activeHouseholdId() {
   if (_householdId) return _householdId
   const supabase = createClient()
-  const { data, error } = await supabase.from('profiles').select('household_id').maybeSingle()
+  const { data, error } = await supabase.rpc('ensure_household')
   if (error) throw error
-  _householdId = data?.household_id ?? null
+  _householdId = data
   return _householdId
 }
 
