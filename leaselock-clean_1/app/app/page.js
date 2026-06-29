@@ -981,19 +981,28 @@ export default function App() {
       const forceSetup = typeof window !== 'undefined' &&
         new URLSearchParams(window.location.search).get('setup') === 'true'
       try {
+        await db.activeHouseholdId()
         const p = await db.getProfile()
         setProfile(p)
         setQuizDone(!forceSetup && db.quizComplete(p))
-      } catch {}
+      } catch (e) {
+        console.error('Failed to load profile', e)
+      }
       setLoading(false)
     })()
   }, [])
 
   async function handleQuizComplete(answers) {
-    setProfile({ ...(profile || {}), ...answers })
-    setQuizDone(true)
-    setTab('movein')
-    try { await db.saveQuizAnswers(answers) } catch {}
+    try {
+      await db.saveQuizAnswers(answers)
+      const p = await db.getProfile()
+      setProfile(p)
+      setQuizDone(true)
+      setTab('movein')
+    } catch (e) {
+      console.error('Failed to save setup', e)
+      alert('Could not save your setup. Please try again.')
+    }
   }
 
   async function handleSignOut() {

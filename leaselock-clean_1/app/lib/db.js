@@ -111,9 +111,12 @@ export async function regenerateInvite() {
 /* ---------------- Profile / quiz answers ---------------- */
 export async function getProfile() {
   const supabase = createClient()
+  const user = await getCurrentUser()
+  if (!user) return null
   const { data, error } = await supabase
     .from('profiles')
     .select('full_name, avatar_url, pets, roommates, cosigner, departure, furnished, household_id')
+    .eq('id', user.id)
     .maybeSingle()
   if (error) throw error
   return data
@@ -121,16 +124,19 @@ export async function getProfile() {
 
 // True once the user has completed the setup quiz.
 export function quizComplete(profile) {
-  return !!(profile && profile.pets)
+  if (!profile) return false
+  return QUIZ_FIELDS.every((f) => profile[f] != null && profile[f] !== '')
 }
 
 export async function saveQuizAnswers(answers) {
   const supabase = createClient()
   const user = await getCurrentUser()
   if (!user) throw new Error('Not signed in')
+  // Ensure profile + household row exists (created on signup, but may be missing for older accounts).
+  await activeHouseholdId()
   const row = { id: user.id, updated_at: new Date().toISOString() }
   for (const f of QUIZ_FIELDS) row[f] = answers[f] ?? null
-  const { error } = await supabase.from('profiles').upsert(row)
+  const { error } = await supabase.from('profiles').upsert(row, { onConflict: 'id' })
   if (error) throw error
 }
 

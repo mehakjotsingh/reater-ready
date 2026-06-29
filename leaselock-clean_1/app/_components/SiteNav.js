@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import Logo from '../components/Logo'
+
 export default function SiteNav() {
   return (
     <nav className="nav">
@@ -9,9 +10,8 @@ export default function SiteNav() {
           <Link href="/#how" className="hide-sm">How it works</Link>
           <Link href="/guides" className="hide-sm">Guides</Link>
           <Link href="/#pricing" className="hide-sm">Pricing</Link>
-          <Link href="/login" className="hide-sm">Log in</Link>
           <Link href="/app" className="btn btn-mint">Start an inspection</Link>
-          <Link href="/app" className="btn btn-ghost hide-sm">Dashboard</Link>
+          <Link href="/login" className="btn btn-ghost hide-sm">Login / Sign up</Link>
         </div>
       </div>
     </nav>
